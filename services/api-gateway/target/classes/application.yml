@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: weather-service
+          uri: lb://weather-service
+          predicates:
+            - Path=/api/weather/**
+        - id: event-service
+          uri: lb://event-service
+          predicates:
+            - Path=/api/events/**
+        - id: recommendation-service
+          uri: lb://recommendation-service
+          predicates:
+            - Path=/api/recommendations/**
+        - id: agenda-service
+          uri: lb://agenda-service
+          predicates:
+            - Path=/api/agenda/**
+
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

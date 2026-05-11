@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # Service Discovery
+  eureka-server:
+    build: ./services/eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - microservices-network
+
+  # API Gateway
+  api-gateway:
+    build: ./services/api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - eureka-server
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    networks:
+      - microservices-network
+
+  # Weather Service
+  weather-service:
+    build: ./services/weather-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - eureka-server
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
