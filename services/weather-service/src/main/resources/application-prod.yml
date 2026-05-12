@@ -1,0 +1,16 @@
+# Configuration production - Utilise Kubernetes secrets
+spring:
+  config:
+    import: optional:kubernetes:/
+
+api:
+  openweather:
+    key: ${OPENWEATHER_API_KEY}  # Doit venir d'un secret K8s
+
+mock:
+  weather:
+    enabled: false
+
+logging:
+  level:
+    com.weather: INFO

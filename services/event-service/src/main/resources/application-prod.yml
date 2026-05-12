@@ -1,0 +1,12 @@
+# Configuration production
+ticketmaster:
+  api:
+    key: ${TICKETMASTER_API_KEY}  # Secret Kubernetes
+
+mock:
+  events:
+    enabled: false
+
+logging:
+  level:
+    com.event: INFO

@@ -1,3 +1,4 @@
+
 .env
 # Secrets
 .env
@@ -8,3 +9,33 @@ target/
 .idea/
 *.iml
 .DS_Store
+
+# Fichiers de configuration locale (contiennent les secrets)
+**/application-local.yml
+**/application-local.properties
+**/application-*.local.yml
+**/application-*.local.properties
+
+# Fichiers d'environnement
+.env
+.env.*
+!.env.example
+
+# Secrets Kubernetes générés
+**/secrets.yaml
+**/*-secrets.yaml
+
+# Fichiers de configuration locale (contiennent les secrets)
+**/application-local.yml
+**/application-local.properties
+**/application-*.local.yml
+**/application-*.local.properties
+
+# Fichiers d'environnement
+.env
+.env.*
+!.env.example
+
+# Secrets Kubernetes générés
+**/secrets.yaml
+**/*-secrets.yaml

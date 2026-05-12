@@ -1,0 +1,14 @@
+# Configuration locale pour Weather Service
+# Copier ce fichier vers application-local.yml et ajouter ta clé API
+
+api:
+  openweather:
+    key: your_openweather_api_key_here  # Obtenir sur https://openweathermap.org/api
+
+mock:
+  weather:
+    enabled: false  # Mettre à true si pas de clé API
+
+logging:
+  level:
+    com.weather: DEBUG

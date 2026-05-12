@@ -9,6 +9,5 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 public class RecommendationServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(RecommendationServiceApplication.class, args);
-        System.out.println(" Recommendation Service démarré sur http://localhost:8083");
     }
 }

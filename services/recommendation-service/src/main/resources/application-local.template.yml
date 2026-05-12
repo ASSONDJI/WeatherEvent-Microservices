@@ -1,0 +1,6 @@
+# Configuration locale pour Recommendation Service
+# Copier ce fichier vers application-local.yml si besoin de config spécifique
+
+logging:
+  level:
+    com.recommendation: DEBUG

@@ -1,0 +1,14 @@
+# Configuration locale pour Event Service
+# Copier ce fichier vers application-local.yml et ajouter ta clé API
+
+ticketmaster:
+  api:
+    key: your_ticketmaster_api_key_here  # Obtenir sur https://developer.ticketmaster.com/
+
+mock:
+  events:
+    enabled: false  # Mettre à true si pas de clé API
+
+logging:
+  level:
+    com.event: DEBUG
