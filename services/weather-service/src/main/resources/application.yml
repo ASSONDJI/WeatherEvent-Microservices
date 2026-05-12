@@ -4,10 +4,6 @@ server:
 spring:
   application:
     name: weather-service
-  profiles:
-    active: local
-  config:
-    import: optional:file:.env[.properties]
 
 eureka:
   client:
@@ -16,13 +12,34 @@ eureka:
   instance:
     prefer-ip-address: true
 
+api:
+  openweather:
+    key: ${OPENWEATHER_API_KEY:}
+
 mock:
   weather:
     enabled: false
 
-api:
-  openweather:
-    key: ${OPENWEATHER_API_KEY:}
+resilience4j:
+  circuitbreaker:
+    instances:
+      openweatherApi:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
+  retry:
+    instances:
+      openweatherApi:
+        maxAttempts: 3
+        waitDuration: 1s
+  timelimiter:
+    instances:
+      openweatherApi:
+        timeoutDuration: 5s
 
 logging:
   level:
@@ -32,4 +49,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
