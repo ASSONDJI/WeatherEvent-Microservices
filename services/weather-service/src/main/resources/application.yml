@@ -4,6 +4,16 @@ server:
 spring:
   application:
     name: weather-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
 
 eureka:
   client:
@@ -19,6 +29,10 @@ api:
 mock:
   weather:
     enabled: false
+
+weather:
+  cache:
+    ttl: 600
 
 resilience4j:
   circuitbreaker:
@@ -53,3 +67,6 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
