@@ -4,6 +4,16 @@ server:
 spring:
   application:
     name: event-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
 
 eureka:
   client:
@@ -14,25 +24,36 @@ eureka:
 
 api:
   ticketmaster:
-    key: ${TICKETMASTER_API_KEY:fWFOy7WdKtGZXcwr5GoRmR6h4dSCXexc}
+    key: ${TICKETMASTER_API_KEY:}
 
 mock:
   events:
-    enabled: false  # Mettre true pour utiliser les mocks
+    enabled: false
+
+event:
+  cache:
+    ttl: 3600
 
 resilience4j:
   circuitbreaker:
     instances:
       ticketmasterApi:
+        registerHealthIndicator: true
         slidingWindowSize: 10
-        failureRateThreshold: 50
-        waitDurationInOpenState: 10000
+        minimumNumberOfCalls: 5
         permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
   retry:
     instances:
       ticketmasterApi:
         maxAttempts: 3
-        waitDuration: 1000
+        waitDuration: 1s
+  timelimiter:
+    instances:
+      ticketmasterApi:
+        timeoutDuration: 5s
 
 logging:
   level:
@@ -43,3 +64,9 @@ management:
     web:
       exposure:
         include: health,info,metrics,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
