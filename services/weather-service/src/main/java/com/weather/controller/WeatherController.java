@@ -1,29 +1,28 @@
 package com.weather.controller;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.weather.service.WeatherService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/weather")
+@RequiredArgsConstructor
 public class WeatherController {
 
-    @Value("${spring.application.name}")
-    private String serviceName;
+    private final WeatherService weatherService;
 
-    @GetMapping("/test")
-    public String test() {
-        return "Weather Service is running!";
+    @GetMapping("/current")
+    public CompletableFuture<Map<String, Object>> getCurrentWeather(@RequestParam String city) {
+        log.info("Weather request received for city: {}", city);
+        return weatherService.getWeather(city);
     }
 
-    @GetMapping("/health")
-    public Map<String, String> health() {
-        return Map.of(
-            "status", "UP",
-            "service", serviceName,
-            "port", "8081"
-        );
+    @GetMapping("/test")
+    public Map<String, String> test() {
+        return Map.of("status", "Weather Service is running!");
     }
 }

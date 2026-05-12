@@ -4,14 +4,30 @@ server:
 spring:
   application:
     name: event-service
+  profiles:
+    active: local
 
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+mock:
+  events:
+    enabled: false
+
+ticketmaster:
+  api:
+    key: ${TICKETMASTER_API_KEY:}
+
+logging:
+  level:
+    com.event: DEBUG
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics

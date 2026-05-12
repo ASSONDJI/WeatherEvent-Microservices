@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: weather-service
+  profiles:
+    active: local
+  config:
+    import: optional:file:.env[.properties]
 
 eureka:
   client:
@@ -12,8 +16,20 @@ eureka:
   instance:
     prefer-ip-address: true
 
+mock:
+  weather:
+    enabled: false
+
+api:
+  openweather:
+    key: ${OPENWEATHER_API_KEY:}
+
+logging:
+  level:
+    com.weather: DEBUG
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics

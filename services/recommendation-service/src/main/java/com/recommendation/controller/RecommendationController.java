@@ -1,15 +1,30 @@
 package com.recommendation.controller;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.recommendation.service.RecommendationService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.Map;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/recommendations")
+@RequiredArgsConstructor
 public class RecommendationController {
 
+    private final RecommendationService recommendationService;
+
+    @GetMapping("/generate")
+    public CompletableFuture<Map<String, Object>> getRecommendations(@RequestParam String city) {
+        log.info("Recommendation request for city: {}", city);
+        return recommendationService.getRecommendations(city);
+    }
+
     @GetMapping("/test")
-    public String test() {
-        return "Recommendation Service is running!";
+    public Map<String, String> test() {
+        return Map.of("status", "Recommendation Service is running!",
+                      "service", "recommendation-service",
+                      "version", "1.0.0");
     }
 }

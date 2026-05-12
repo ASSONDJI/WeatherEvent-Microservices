@@ -23,12 +23,6 @@ spring:
           uri: lb://recommendation-service
           predicates:
             - Path=/api/recommendations/**
-        - id: agenda-service
-          uri: lb://agenda-service
-          predicates:
-            - Path=/api/agenda/**
-
-
 
 eureka:
   client:
