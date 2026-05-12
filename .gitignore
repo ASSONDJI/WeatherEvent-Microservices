@@ -1,41 +1,30 @@
-
-.env
-# Secrets
-.env
-.env.local
-.env.*.local
-*.log
+# Compiled
 target/
+**/target/
+
+# IDE
 .idea/
 *.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Logs
+logs/
+*.log
+
+# OS
 .DS_Store
+Thumbs.db
 
-# Fichiers de configuration locale (contiennent les secrets)
+# Secrets
 **/application-local.yml
 **/application-local.properties
-**/application-*.local.yml
-**/application-*.local.properties
-
-# Fichiers d'environnement
 .env
-.env.*
+.env.local
 !.env.example
 
-# Secrets Kubernetes générés
-**/secrets.yaml
-**/*-secrets.yaml
-
-# Fichiers de configuration locale (contiennent les secrets)
-**/application-local.yml
-**/application-local.properties
-**/application-*.local.yml
-**/application-*.local.properties
-
-# Fichiers d'environnement
-.env
-.env.*
-!.env.example
-
-# Secrets Kubernetes générés
-**/secrets.yaml
-**/*-secrets.yaml
+# Backup files
+*.bak
+*.backup
