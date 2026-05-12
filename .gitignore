@@ -1,0 +1,10 @@
+.env
+# Secrets
+.env
+.env.local
+.env.*.local
+*.log
+target/
+.idea/
+*.iml
+.DS_Store
