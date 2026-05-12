@@ -1,0 +1,19 @@
+server:
+  port: 8081
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+api:
+  openweather:
+    key: ${OPENWEATHER_API_KEY}
+
+mock:
+  weather:
+    enabled: false
+
+logging:
+  level:
+    com.weather: INFO
