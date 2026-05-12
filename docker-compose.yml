@@ -1,39 +1,73 @@
 version: '3.8'
 
 services:
-  # Service Discovery
   eureka-server:
     build: ./services/eureka-server
+    container_name: eureka-server
     ports:
       - "8761:8761"
     networks:
-      - microservices-network
-
-  # API Gateway
-  api-gateway:
-    build: ./services/api-gateway
-    ports:
-      - "8080:8080"
-    depends_on:
-      - eureka-server
+      - weather-network
     environment:
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-    networks:
-      - microservices-network
+      - SPRING_PROFILES_ACTIVE=docker
 
-  # Weather Service
   weather-service:
     build: ./services/weather-service
+    container_name: weather-service
     ports:
       - "8081:8081"
+    networks:
+      - weather-network
     depends_on:
       - eureka-server
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=docker
       - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+
+  event-service:
+    build: ./services/event-service
+    container_name: event-service
+    ports:
+      - "8082:8082"
     networks:
-      - microservices-network
+      - weather-network
+    depends_on:
+      - eureka-server
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=docker
+      - TICKETMASTER_API_KEY=${TICKETMASTER_API_KEY}
+
+  recommendation-service:
+    build: ./services/recommendation-service
+    container_name: recommendation-service
+    ports:
+      - "8083:8083"
+    networks:
+      - weather-network
+    depends_on:
+      - eureka-server
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=docker
+
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    networks:
+      - weather-network
+    depends_on:
+      - eureka-server
+      - weather-service
+      - event-service
+      - recommendation-service
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_PROFILES_ACTIVE=docker
 
 networks:
-  microservices-network:
+  weather-network:
     driver: bridge

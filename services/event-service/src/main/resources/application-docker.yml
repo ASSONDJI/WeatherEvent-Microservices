@@ -1,0 +1,19 @@
+server:
+  port: 8082
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/
+
+api:
+  ticketmaster:
+    key: ${TICKETMASTER_API_KEY}
+
+mock:
+  events:
+    enabled: false
+
+logging:
+  level:
+    com.event: INFO
