@@ -4,8 +4,6 @@ server:
 spring:
   application:
     name: event-service
-  profiles:
-    active: local
 
 eureka:
   client:
@@ -14,13 +12,27 @@ eureka:
   instance:
     prefer-ip-address: true
 
+api:
+  ticketmaster:
+    key: ${TICKETMASTER_API_KEY:fWFOy7WdKtGZXcwr5GoRmR6h4dSCXexc}
+
 mock:
   events:
-    enabled: false
+    enabled: false  # Mettre true pour utiliser les mocks
 
-ticketmaster:
-  api:
-    key: ${TICKETMASTER_API_KEY:}
+resilience4j:
+  circuitbreaker:
+    instances:
+      ticketmasterApi:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+  retry:
+    instances:
+      ticketmasterApi:
+        maxAttempts: 3
+        waitDuration: 1000
 
 logging:
   level:
@@ -30,4 +42,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,circuitbreakers
