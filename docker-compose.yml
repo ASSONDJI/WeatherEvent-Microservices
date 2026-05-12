@@ -20,10 +20,12 @@ services:
       - weather-network
     depends_on:
       - eureka-server
+      - redis
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_PROFILES_ACTIVE=docker
       - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      - REDIS_HOST=redis
 
   event-service:
     build: ./services/event-service
@@ -34,10 +36,12 @@ services:
       - weather-network
     depends_on:
       - eureka-server
+      - redis
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_PROFILES_ACTIVE=docker
       - TICKETMASTER_API_KEY=${TICKETMASTER_API_KEY}
+      - REDIS_HOST=redis
 
   recommendation-service:
     build: ./services/recommendation-service
@@ -68,6 +72,21 @@ services:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - SPRING_PROFILES_ACTIVE=docker
 
+  redis:
+    image: redis:7-alpine
+    container_name: redis-cache
+    ports:
+      - "6379:6379"
+    networks:
+      - weather-network
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
 networks:
   weather-network:
     driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
