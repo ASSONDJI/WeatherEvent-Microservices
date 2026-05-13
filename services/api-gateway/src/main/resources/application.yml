@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8084/realms/weather-event
+          jwk-set-uri: http://keycloak:8080/realms/weather-event/protocol/openid-connect/certs
   cloud:
     gateway:
       discovery:
@@ -14,6 +20,7 @@ spring:
         - id: weather-service
           uri: lb://weather-service
           predicates:
+            -
             - Path=/api/weather/**
         - id: event-service
           uri: lb://event-service
@@ -27,7 +34,7 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
 
 management:
   endpoints:

@@ -1,0 +1,23 @@
+[
+    {
+        "id": "a1a0a8ab-757e-404c-abb1-f2e869c3049a",
+        "createdTimestamp": 1778687691186,
+        "username": "user",
+        "enabled": true,
+        "totp": false,
+        "emailVerified": true,
+        "firstName": "Test",
+        "lastName": "User",
+        "email": "user@weather-event.com",
+        "disableableCredentialTypes": [],
+        "requiredActions": [],
+        "notBefore": 0,
+        "access": {
+            "manageGroupMembership": true,
+            "view": true,
+            "mapRoles": true,
+            "impersonate": true,
+            "manage": true
+        }
+    }
+]
