@@ -26,6 +26,7 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
       - REDIS_HOST=redis
+      - KEYCLOAK_JWK_URI=http://keycloak:8080/realms/weather-event/protocol/openid-connect/certs
 
   event-service:
     build: ./services/event-service
@@ -82,6 +83,21 @@ services:
     volumes:
       - redis-data:/data
     command: redis-server --appendonly yes
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0.1
+    container_name: keycloak
+    ports:
+      - "8084:8080"
+    networks:
+      - weather-network
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_DB=dev-file
+      - KC_HOSTNAME=keycloak
+      - KC_HOSTNAME_STRICT=false
+    command: start-dev
 
 networks:
   weather-network:
