@@ -99,6 +99,27 @@ services:
       - KC_HOSTNAME_STRICT=false
     command: start-dev
 
+  agenda-service:
+    build:
+      context: ./services/agenda-service
+    container_name: agenda-service
+    ports:
+      - "8086:8086"
+    networks:
+      - weather-network
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - REDIS_HOST=redis
+      - WEATHER_SERVICE_URL=http://weather-service:8081
+      - EVENT_SERVICE_URL=http://event-service:8082
+      - RECOMMENDATION_SERVICE_URL=http://recommendation-service:8083
+    depends_on:
+      - eureka-server
+      - redis
+      - weather-service
+      - event-service
+      - recommendation-service
+
 networks:
   weather-network:
     driver: bridge

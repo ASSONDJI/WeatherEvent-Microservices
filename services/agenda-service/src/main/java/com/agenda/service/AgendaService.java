@@ -1,16 +1,12 @@
-package com.mashup.service;
+package com.agenda.service;
 
-import com.mashup.dto.generated.AgendaResponse;
-import com.mashup.dto.generated.ApiStatus;
-import com.mashup.dto.generated.EventResponse;
-import com.mashup.dto.generated.ModeEnum;
-import com.mashup.dto.generated.RecommendationResponse;
-import com.mashup.dto.generated.WeatherResponse;
-import com.mashup.exception.CityNotFoundException;
-import com.mashup.exception.ExternalApiException;
+import com.agenda.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -19,118 +15,139 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class AgendaService {
 
-    private final WeatherService weatherService;
-    private final EventService eventService;
-    private final RecommendationService recommendationService;
+    private final WebClient.Builder webClientBuilder;
+
+    @Value("${services.weather-url}")
+    private String weatherUrl;
+
+    @Value("${services.event-url}")
+    private String eventUrl;
+
+    @Value("${services.recommendation-url}")
+    private String recommendationUrl;
 
     public AgendaResponse buildAgendaParallel(String city, String date) {
         long startTime = System.currentTimeMillis();
         log.info("[PARALLEL] Starting agenda for {} on {}", city, date);
 
-        try {
-            // ✅ Appel direct à getWeatherCached() et getEventsCached()
-            // pour que @Cacheable soit intercepté par le proxy Spring
-            CompletableFuture<WeatherResponse> weatherFuture =
-                    CompletableFuture.supplyAsync(() -> weatherService.getWeatherCached(city));
-            CompletableFuture<List<EventResponse>> eventsFuture =
-                    CompletableFuture.supplyAsync(() -> eventService.getEventsCached(city, date));
+        CompletableFuture<WeatherResponse> weatherFuture =
+            CompletableFuture.supplyAsync(() -> fetchWeather(city));
+        CompletableFuture<List<EventResponse>> eventsFuture =
+            CompletableFuture.supplyAsync(() -> fetchEvents(city, date));
+        CompletableFuture<List<RecommendationResponse>> recommendationsFuture =
+            CompletableFuture.supplyAsync(() -> fetchRecommendations(city));
 
-            WeatherResponse weather = weatherFuture.join();
+        CompletableFuture.allOf(weatherFuture, eventsFuture, recommendationsFuture).join();
 
-            CompletableFuture<List<RecommendationResponse>> recommendationsFuture =
-                    CompletableFuture.supplyAsync(() ->
-                            recommendationService.getRecommendationsCached(city, weather));
+        long processingTime = System.currentTimeMillis() - startTime;
+        log.info("[PARALLEL] Agenda built in {}ms for {}", processingTime, city);
 
-            CompletableFuture.allOf(eventsFuture, recommendationsFuture).join();
-
-            long processingTime = System.currentTimeMillis() - startTime;
-            log.info("[PARALLEL] Agenda built in {}ms for {}", processingTime, city);
-
-            AgendaResponse response = new AgendaResponse();
-            response.setCity(city);
-            response.setDate(date);
-            response.setWeather(weather);
-            response.setEvents(eventsFuture.join());
-            response.setRecommendations(recommendationsFuture.join());
-            response.setProcessingTimeMs(processingTime);
-            response.setMode(ModeEnum.PARALLEL);
-
-            ApiStatus apiStatus = new ApiStatus();
-            apiStatus.setWeatherApiAvailable(!response.getWeather().getFallback());
-            apiStatus.setEventsApiAvailable(!response.getEvents().isEmpty());
-            apiStatus.setRecommendationsApiAvailable(true);
-            response.setApiStatus(apiStatus);
-
-            return response;
-
-        } catch (Exception e) {
-            log.error("[PARALLEL] Error for {}: {}", city, e.getMessage());
-            if (e.getCause() instanceof CityNotFoundException) {
-                throw (CityNotFoundException) e.getCause();
-            }
-            if (e.getCause() instanceof ExternalApiException) {
-                throw (ExternalApiException) e.getCause();
-            }
-            throw new RuntimeException("Failed to build agenda for " + city, e);
-        }
+        return buildResponse(city, date, weatherFuture.join(),
+            eventsFuture.join(), recommendationsFuture.join(),
+            processingTime, "PARALLEL");
     }
 
     public AgendaResponse buildAgendaSequential(String city, String date) {
         long startTime = System.currentTimeMillis();
         log.info("[SEQUENTIAL] Starting agenda for {} on {}", city, date);
 
+        WeatherResponse weather = fetchWeather(city);
+        List<EventResponse> events = fetchEvents(city, date);
+        List<RecommendationResponse> recommendations = fetchRecommendations(city);
+
+        long processingTime = System.currentTimeMillis() - startTime;
+        log.info("[SEQUENTIAL] Agenda built in {}ms for {}", processingTime, city);
+
+        return buildResponse(city, date, weather, events, recommendations,
+            processingTime, "SEQUENTIAL");
+    }
+
+    public BenchmarkResult benchmark(String city, String date) {
+        long seqStart = System.currentTimeMillis();
+        AgendaResponse seqResponse = buildAgendaSequential(city, date);
+        long seqTime = System.currentTimeMillis() - seqStart;
+
+        long parStart = System.currentTimeMillis();
+        AgendaResponse parResponse = buildAgendaParallel(city, date);
+        long parTime = System.currentTimeMillis() - parStart;
+
+        double speedup = parTime > 0 ? (double) seqTime / parTime : 1.0;
+
+        BenchmarkResult result = new BenchmarkResult();
+        result.setSequentialTimeMs(seqTime);
+        result.setParallelTimeMs(parTime);
+        result.setSpeedupFactor(speedup);
+        result.setSequentialResponse(seqResponse);
+        result.setParallelResponse(parResponse);
+        return result;
+    }
+
+    private WeatherResponse fetchWeather(String city) {
         try {
-            // ✅ Appel direct à getWeatherCached() et getEventsCached()
-            WeatherResponse weather = weatherService.getWeatherCached(city);
-            List<EventResponse> events = eventService.getEventsCached(city, date);
-            List<RecommendationResponse> recommendations =
-                    recommendationService.getRecommendationsCached(city, weather);
-
-            long processingTime = System.currentTimeMillis() - startTime;
-            log.info("[SEQUENTIAL] Agenda built in {}ms for {}", processingTime, city);
-
-            AgendaResponse response = new AgendaResponse();
-            response.setCity(city);
-            response.setDate(date);
-            response.setWeather(weather);
-            response.setEvents(events);
-            response.setRecommendations(recommendations);
-            response.setProcessingTimeMs(processingTime);
-            response.setMode(ModeEnum.SEQUENTIAL);
-
-            ApiStatus apiStatus = new ApiStatus();
-            apiStatus.setWeatherApiAvailable(!weather.getFallback());
-            apiStatus.setEventsApiAvailable(!events.isEmpty());
-            apiStatus.setRecommendationsApiAvailable(true);
-            response.setApiStatus(apiStatus);
-
-            return response;
-
+            return webClientBuilder.build()
+                .get()
+                .uri(weatherUrl + "/api/weather/current?city=" + city)
+                .retrieve()
+                .bodyToMono(WeatherResponse.class)
+                .block();
         } catch (Exception e) {
-            log.error("[SEQUENTIAL] Error for {}: {}", city, e.getMessage());
-            if (e.getCause() instanceof CityNotFoundException) {
-                throw (CityNotFoundException) e.getCause();
-            }
-            if (e.getCause() instanceof ExternalApiException) {
-                throw (ExternalApiException) e.getCause();
-            }
-            throw new RuntimeException("Failed to build sequential agenda for " + city, e);
+            log.error("Error fetching weather for {}: {}", city, e.getMessage());
+            WeatherResponse fallback = new WeatherResponse();
+            fallback.setCity(city);
+            fallback.setCondition("Unavailable");
+            fallback.setFallback(true);
+            return fallback;
         }
     }
 
-    public double calculateSpeedup(long sequentialTime, long parallelTime) {
-        if (sequentialTime < 0 || parallelTime < 0) {
-            log.warn("Temps négatifs détectés - seq: {}ms, par: {}ms", sequentialTime, parallelTime);
-            return 0.0;
+    private List<EventResponse> fetchEvents(String city, String date) {
+        try {
+            return webClientBuilder.build()
+                .get()
+                .uri(eventUrl + "/api/events/upcoming?city=" + city + "&date=" + date)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<EventResponse>>() {})
+                .block();
+        } catch (Exception e) {
+            log.error("Error fetching events for {}: {}", city, e.getMessage());
+            return List.of();
         }
-        if (parallelTime == 0) {
-            return sequentialTime == 0 ? 1.0 : (double) sequentialTime;
+    }
+
+    private List<RecommendationResponse> fetchRecommendations(String city) {
+        try {
+            return webClientBuilder.build()
+                .get()
+                .uri(recommendationUrl + "/api/recommendations/generate?city=" + city)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<RecommendationResponse>>() {})
+                .block();
+        } catch (Exception e) {
+            log.error("Error fetching recommendations for {}: {}", city, e.getMessage());
+            return List.of();
         }
-        double speedup = (double) sequentialTime / parallelTime;
-        if (Double.isInfinite(speedup) || Double.isNaN(speedup)) {
-            log.warn("Speedup invalide - seq: {}ms, par: {}ms", sequentialTime, parallelTime);
-            return 0.0;
-        }
-        return speedup;
+    }
+
+    private AgendaResponse buildResponse(String city, String date,
+            WeatherResponse weather, List<EventResponse> events,
+            List<RecommendationResponse> recommendations,
+            long processingTime, String mode) {
+
+        AgendaResponse response = new AgendaResponse();
+        response.setCity(city);
+        response.setDate(date);
+        response.setWeather(weather);
+        response.setEvents(events);
+        response.setRecommendations(recommendations);
+        response.setProcessingTimeMs(processingTime);
+        response.setMode(mode);
+
+        AgendaResponse.ApiStatus apiStatus = new AgendaResponse.ApiStatus();
+        apiStatus.setWeatherApiAvailable(weather != null && !Boolean.TRUE.equals(weather.getFallback()));
+        apiStatus.setEventsApiAvailable(events != null && !events.isEmpty());
+        apiStatus.setRecommendationsApiAvailable(recommendations != null && !recommendations.isEmpty());
+        response.setApiStatus(apiStatus);
+
+        return response;
     }
 }
