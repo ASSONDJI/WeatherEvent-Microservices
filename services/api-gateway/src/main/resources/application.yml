@@ -20,7 +20,6 @@ spring:
         - id: weather-service
           uri: lb://weather-service
           predicates:
-            -
             - Path=/api/weather/**
         - id: event-service
           uri: lb://event-service
@@ -30,6 +29,10 @@ spring:
           uri: lb://recommendation-service
           predicates:
             - Path=/api/recommendations/**
+        - id: agenda-service
+          uri: lb://agenda-service
+          predicates:
+            - Path=/api/agenda/**
 
 eureka:
   client:
