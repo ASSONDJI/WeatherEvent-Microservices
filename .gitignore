@@ -28,3 +28,5 @@ Thumbs.db
 # Backup files
 *.bak
 *.backup
+# Docker layer files
+[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]

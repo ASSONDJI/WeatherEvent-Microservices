@@ -120,10 +120,48 @@ services:
       - event-service
       - recommendation-service
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-db
+    ports:
+      - "5432:5432"
+    networks:
+      - weather-network
+    environment:
+      - POSTGRES_DB=reservationdb
+      - POSTGRES_USER=reservation_user
+      - POSTGRES_PASSWORD=reservation_pass
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U reservation_user -d reservationdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  reservation-service:
+    build:
+      context: ./services/reservation-service
+    container_name: reservation-service
+    ports:
+      - "8085:8085"
+    networks:
+      - weather-network
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - DB_HOST=postgres
+      - DB_NAME=reservationdb
+      - DB_USER=reservation_user
+      - DB_PASSWORD=reservation_pass
+    depends_on:
+      - eureka-server
+      - postgres
+
 networks:
   weather-network:
     driver: bridge
 
 volumes:
   redis-data:
+  postgres-data:
     driver: local
