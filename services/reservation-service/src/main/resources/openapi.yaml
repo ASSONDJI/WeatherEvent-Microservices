@@ -1,0 +1,662 @@
+openapi: 3.0.3
+info:
+  title: Reservation Service API
+  description: |
+    ## Reservation Service
+    
+    Service de reservation pour l'application WeatherEvent Microservices.
+    
+    Permet de reserver :
+    - **Hotels** - Hebergement dans la ville visitee
+    - **Restaurants** - Experience culinaire locale
+    - **Evenements** - Concerts, expositions, spectacles
+    - **Activites** - Visites guidees, sports, excursions
+    - **Transport** - Taxi, location de voiture
+    
+    ### Fonctionnalites :
+    - API-First avec OpenAPI Generator
+    - Spring Data JPA + PostgreSQL
+    - Pagination et tri
+    - Filtres avances
+    - Statistiques
+    - Gestion des roles user/admin
+    - Validation des donnees
+  version: 1.0.0
+  contact:
+    name: Malaika Assondji
+    email: middleware@univ-cm
+
+servers:
+  - url: http://localhost:8085
+    description: Serveur de developpement local
+  - url: http://localhost:8080
+    description: Via API Gateway
+
+tags:
+  - name: Reservations
+    description: Gestion complete des reservations
+  - name: Admin
+    description: Administration - acces restreint
+  - name: Statistics
+    description: Statistiques et rapports
+  - name: Health
+    description: Monitoring et sante du service
+
+paths:
+
+  /api/reservations:
+    post:
+      tags:
+        - Reservations
+      summary: Creer une reservation
+      description: |
+        Cree une nouvelle reservation. Le statut initial est PENDING.
+      operationId: createReservation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+      responses:
+        '201':
+          description: Reservation creee avec succes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          description: Donnees invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reservations/user/{userId}:
+    get:
+      tags:
+        - Reservations
+      summary: Voir les reservations d'un utilisateur
+      description: |
+        Retourne les reservations d'un utilisateur avec :
+        - Pagination (page, size)
+        - Filtrage par status et type
+        - Tri par date, createdAt, totalPrice
+      operationId: getReservationsByUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "user-123"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReservationStatus'
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReservationType'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "createdAt,desc"
+      responses:
+        '200':
+          description: Liste paginee des reservations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedReservationResponse'
+
+  /api/reservations/user/{userId}/stats:
+    get:
+      tags:
+        - Statistics
+      summary: Statistiques d'un utilisateur
+      description: Retourne le resume des reservations d'un utilisateur
+      operationId: getUserStats
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Statistiques de l'utilisateur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStats'
+
+  /api/reservations/search:
+    get:
+      tags:
+        - Reservations
+      summary: Recherche avancee de reservations
+      description: |
+        Recherche avec filtres multiples :
+        - Par ville
+        - Par type
+        - Par periode (dateFrom, dateTo)
+        - Par statut
+      operationId: searchReservations
+      parameters:
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "Paris"
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReservationType'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReservationStatus'
+        - name: dateFrom
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2026-05-01"
+        - name: dateTo
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2026-05-31"
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "createdAt,desc"
+      responses:
+        '200':
+          description: Resultats de la recherche
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedReservationResponse'
+
+  /api/reservations/{id}:
+    get:
+      tags:
+        - Reservations
+      summary: Voir une reservation par ID
+      operationId: getReservationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reservation trouvee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '404':
+          description: Reservation non trouvee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Reservations
+      summary: Modifier une reservation
+      description: |
+        Permet de modifier une reservation en statut PENDING.
+        Les reservations CONFIRMED ou CANCELLED ne peuvent pas etre modifiees.
+      operationId: updateReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationUpdateRequest'
+      responses:
+        '200':
+          description: Reservation modifiee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          description: Modification impossible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Reservation non trouvee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Reservations
+      summary: Supprimer une reservation
+      operationId: deleteReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Reservation supprimee
+
+  /api/reservations/{id}/confirm:
+    put:
+      tags:
+        - Reservations
+      summary: Confirmer une reservation
+      operationId: confirmReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reservation confirmee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '404':
+          description: Reservation non trouvee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reservations/{id}/cancel:
+    put:
+      tags:
+        - Reservations
+      summary: Annuler une reservation
+      operationId: cancelReservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reservation annulee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '404':
+          description: Reservation non trouvee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/reservations:
+    get:
+      tags:
+        - Admin
+      summary: Voir toutes les reservations (admin)
+      description: Acces admin - retourne toutes les reservations avec pagination
+      operationId: getAllReservations
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReservationStatus'
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReservationType'
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "createdAt,desc"
+      responses:
+        '200':
+          description: Toutes les reservations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedReservationResponse'
+
+  /api/admin/stats:
+    get:
+      tags:
+        - Admin
+      summary: Statistiques globales (admin)
+      operationId: getGlobalStats
+      responses:
+        '200':
+          description: Statistiques globales
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalStats'
+
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Verification de sante
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service operationnel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  schemas:
+
+    ReservationType:
+      type: string
+      enum:
+        - HOTEL
+        - RESTAURANT
+        - EVENT
+        - ACTIVITY
+        - TRANSPORT
+      description: Type de reservation
+
+    ReservationStatus:
+      type: string
+      enum:
+        - PENDING
+        - CONFIRMED
+        - CANCELLED
+      description: Statut de la reservation
+
+    ReservationRequest:
+      type: object
+      required:
+        - userId
+        - city
+        - type
+        - name
+        - date
+      properties:
+        userId:
+          type: string
+          description: Identifiant de l'utilisateur
+          example: "user-123"
+        city:
+          type: string
+          description: Ville de la reservation
+          example: "Paris"
+        type:
+          $ref: '#/components/schemas/ReservationType'
+        name:
+          type: string
+          description: Nom de l'etablissement ou de l'evenement
+          example: "Le Gourmet Parisien"
+        venue:
+          type: string
+          description: Adresse ou lieu
+          example: "15 Rue de la Paix, Paris"
+        date:
+          type: string
+          format: date
+          description: Date de la reservation
+          example: "2026-05-20"
+        numberOfPersons:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Nombre de personnes
+        totalPrice:
+          type: number
+          format: double
+          minimum: 0
+          default: 0.0
+          description: Prix total en euros
+        notes:
+          type: string
+          description: Notes ou demandes speciales
+          example: "Table en terrasse si possible"
+
+    ReservationUpdateRequest:
+      type: object
+      properties:
+        venue:
+          type: string
+        date:
+          type: string
+          format: date
+        numberOfPersons:
+          type: integer
+          minimum: 1
+        totalPrice:
+          type: number
+          format: double
+          minimum: 0
+        notes:
+          type: string
+
+    ReservationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        city:
+          type: string
+        type:
+          $ref: '#/components/schemas/ReservationType'
+        name:
+          type: string
+        venue:
+          type: string
+        date:
+          type: string
+          format: date
+        numberOfPersons:
+          type: integer
+        totalPrice:
+          type: number
+          format: double
+        notes:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PagedReservationResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservationResponse'
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        currentPage:
+          type: integer
+        pageSize:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+
+    UserStats:
+      type: object
+      properties:
+        userId:
+          type: string
+        totalReservations:
+          type: integer
+        confirmedReservations:
+          type: integer
+        cancelledReservations:
+          type: integer
+        pendingReservations:
+          type: integer
+        totalAmountSpent:
+          type: number
+          format: double
+        favoriteCity:
+          type: string
+        favoriteType:
+          $ref: '#/components/schemas/ReservationType'
+        reservationsByType:
+          type: object
+          additionalProperties:
+            type: integer
+
+    GlobalStats:
+      type: object
+      properties:
+        totalReservations:
+          type: integer
+          format: int64
+        confirmedReservations:
+          type: integer
+          format: int64
+        cancelledReservations:
+          type: integer
+          format: int64
+        pendingReservations:
+          type: integer
+          format: int64
+        totalRevenue:
+          type: number
+          format: double
+        topCities:
+          type: array
+          items:
+            type: string
+        reservationsByType:
+          type: object
+          additionalProperties:
+            type: integer
+        reservationsByStatus:
+          type: object
+          additionalProperties:
+            type: integer
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, DEGRADED]
+        service:
+          type: string
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string

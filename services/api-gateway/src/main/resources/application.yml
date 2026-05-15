@@ -33,6 +33,10 @@ spring:
           uri: lb://agenda-service
           predicates:
             - Path=/api/agenda/**
+        - id: reservation-service
+          uri: lb://reservation-service
+          predicates:
+            - Path=/api/reservations/**,/api/admin/**
 
 eureka:
   client:
