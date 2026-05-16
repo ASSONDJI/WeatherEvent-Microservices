@@ -1,6 +1,8 @@
 package com.reservation.service;
 
 import com.reservation.dto.generated.*;
+import com.reservation.event.ReservationEvent;
+import com.reservation.event.ReservationEventProducer;
 import com.reservation.model.Reservation;
 import com.reservation.repository.ReservationRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +20,7 @@ import java.util.stream.Collectors;
 public class ReservationService {
 
     private final ReservationRepository repository;
+    private final ReservationEventProducer eventProducer;
 
     public ReservationResponse create(ReservationRequest request) {
         log.info("Creating reservation for user: {} in {}", request.getUserId(), request.getCity());
@@ -31,13 +34,14 @@ public class ReservationService {
         r.setNumberOfPersons(request.getNumberOfPersons() != null ? request.getNumberOfPersons() : 1);
         r.setTotalPrice(request.getTotalPrice() != null ? request.getTotalPrice() : 0.0);
         r.setNotes(request.getNotes());
-        return toResponse(repository.save(r));
+        Reservation saved = repository.save(r);
+        eventProducer.publishCreated(saved);
+        return toResponse(saved);
     }
 
     public PagedReservationResponse getByUser(String userId, String status, String type, int page, int size, String sort) {
         Pageable pageable = buildPageable(page, size, sort);
         Page<Reservation> result;
-
         if (status != null && type != null) {
             result = repository.findByUserIdAndStatusAndType(userId, status, type, pageable);
         } else if (status != null) {
@@ -81,14 +85,18 @@ public class ReservationService {
         Reservation r = repository.findById(id)
             .orElseThrow(() -> new RuntimeException("Reservation not found: " + id));
         r.setStatus("CONFIRMED");
-        return toResponse(repository.save(r));
+        Reservation confirmed = repository.save(r);
+        eventProducer.publishConfirmed(confirmed);
+        return toResponse(confirmed);
     }
 
     public ReservationResponse cancel(String id) {
         Reservation r = repository.findById(id)
             .orElseThrow(() -> new RuntimeException("Reservation not found: " + id));
         r.setStatus("CANCELLED");
-        return toResponse(repository.save(r));
+        Reservation cancelled = repository.save(r);
+        eventProducer.publishCancelled(cancelled);
+        return toResponse(cancelled);
     }
 
     public void delete(String id) {
@@ -112,24 +120,18 @@ public class ReservationService {
         stats.setTotalAmountSpent(all.stream()
             .filter(r -> "CONFIRMED".equals(r.getStatus()))
             .mapToDouble(r -> r.getTotalPrice() != null ? r.getTotalPrice() : 0.0).sum());
-
-        // Ville favorite
         all.stream().collect(Collectors.groupingBy(Reservation::getCity, Collectors.counting()))
             .entrySet().stream().max(Map.Entry.comparingByValue())
             .ifPresent(e -> stats.setFavoriteCity(e.getKey()));
-
-        // Type favori
         all.stream().collect(Collectors.groupingBy(Reservation::getType, Collectors.counting()))
             .entrySet().stream().max(Map.Entry.comparingByValue())
             .ifPresent(e -> {
                 try { stats.setFavoriteType(ReservationType.fromValue(e.getKey())); } catch (Exception ex) {}
             });
-
-        // Par type
         Map<String, Integer> byType = all.stream()
-            .collect(Collectors.groupingBy(Reservation::getType, Collectors.collectingAndThen(Collectors.counting(), Long::intValue)));
+            .collect(Collectors.groupingBy(Reservation::getType,
+                Collectors.collectingAndThen(Collectors.counting(), Long::intValue)));
         stats.setReservationsByType(byType);
-
         return stats;
     }
 
@@ -140,23 +142,19 @@ public class ReservationService {
         stats.setCancelledReservations(repository.countByStatus("CANCELLED"));
         stats.setPendingReservations(repository.countByStatus("PENDING"));
         stats.setTotalRevenue(repository.sumTotalRevenue());
-
         List<String> topCities = repository.findTopCities().stream()
             .limit(5).map(r -> (String) r[0]).collect(Collectors.toList());
         stats.setTopCities(topCities);
-
         Map<String, Integer> byType = new HashMap<>();
         for (ReservationType type : ReservationType.values()) {
             byType.put(type.getValue(), (int) repository.countByType(type.getValue()));
         }
         stats.setReservationsByType(byType);
-
         Map<String, Integer> byStatus = new HashMap<>();
         byStatus.put("CONFIRMED", (int) repository.countByStatus("CONFIRMED"));
         byStatus.put("CANCELLED", (int) repository.countByStatus("CANCELLED"));
         byStatus.put("PENDING", (int) repository.countByStatus("PENDING"));
         stats.setReservationsByStatus(byStatus);
-
         return stats;
     }
 
