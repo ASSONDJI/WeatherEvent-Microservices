@@ -1,0 +1,299 @@
+openapi: 3.0.3
+info:
+  title: Notification Service API
+  description: |
+    ## Notification Service
+    
+    Service de gestion des notifications pour WeatherEvent Microservices.
+    
+    Fonctionnalites :
+    - Historique des notifications par utilisateur
+    - Marquer comme lu/non lu
+    - Filtrage par type et statut
+    - Statistiques de notifications
+  version: 1.0.0
+  contact:
+    name: Malaika Assondji
+    email: middleware@univ-cm
+
+servers:
+  - url: http://localhost:8087
+    description: Serveur de developpement
+  - url: http://localhost:8080
+    description: Via API Gateway
+
+tags:
+  - name: Notifications
+    description: Gestion des notifications utilisateur
+  - name: Health
+    description: Monitoring du service
+
+paths:
+
+  /api/notifications/user/{userId}:
+    get:
+      tags:
+        - Notifications
+      summary: Voir les notifications d'un utilisateur
+      operationId: getNotificationsByUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "user"
+        - name: read
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filtrer par statut lu/non lu
+        - name: type
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/NotificationType'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "createdAt,desc"
+      responses:
+        '200':
+          description: Liste paginee des notifications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedNotificationResponse'
+
+  /api/notifications/user/{userId}/unread-count:
+    get:
+      tags:
+        - Notifications
+      summary: Nombre de notifications non lues
+      operationId: getUnreadCount
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Nombre de notifications non lues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponse'
+
+  /api/notifications/user/{userId}/read-all:
+    put:
+      tags:
+        - Notifications
+      summary: Marquer toutes les notifications comme lues
+      operationId: markAllAsRead
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Toutes les notifications marquees comme lues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkOperationResponse'
+
+  /api/notifications/{id}:
+    get:
+      tags:
+        - Notifications
+      summary: Voir une notification par ID
+      operationId: getNotificationById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification trouvee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '404':
+          description: Notification non trouvee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Notifications
+      summary: Supprimer une notification
+      operationId: deleteNotification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Notification supprimee
+
+  /api/notifications/{id}/read:
+    put:
+      tags:
+        - Notifications
+      summary: Marquer une notification comme lue
+      operationId: markAsRead
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification marquee comme lue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Verification de sante
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service operationnel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  schemas:
+
+    NotificationType:
+      type: string
+      enum:
+        - RESERVATION_CREATED
+        - RESERVATION_CONFIRMED
+        - RESERVATION_CANCELLED
+      description: Type de notification
+
+    NotificationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          $ref: '#/components/schemas/NotificationType'
+        title:
+          type: string
+        message:
+          type: string
+        reservationId:
+          type: string
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        readAt:
+          type: string
+          format: date-time
+
+    PagedNotificationResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationResponse'
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        currentPage:
+          type: integer
+        pageSize:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrevious:
+          type: boolean
+
+    UnreadCountResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+        unreadCount:
+          type: integer
+          format: int64
+
+    BulkOperationResponse:
+      type: object
+      properties:
+        affectedCount:
+          type: integer
+        message:
+          type: string
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, DEGRADED]
+        service:
+          type: string
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        errorCode:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
