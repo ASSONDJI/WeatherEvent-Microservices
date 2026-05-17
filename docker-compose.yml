@@ -133,6 +133,7 @@ services:
       - POSTGRES_PASSWORD=reservation_pass
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U reservation_user -d reservationdb"]
       interval: 10s
@@ -226,9 +227,14 @@ services:
     environment:
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - DB_HOST=postgres
+      - DB_NOTIFICATION_NAME=notificationdb
+      - DB_USER=notification_user
+      - DB_PASSWORD=notification_pass
     depends_on:
       - eureka-server
       - kafka
+      - postgres
 
 networks:
   weather-network:

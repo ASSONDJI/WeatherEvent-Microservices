@@ -1,0 +1,15 @@
+package com.reservation.exception;
+
+public abstract class ReservationException extends RuntimeException {
+    
+    private final String errorCode;
+    
+    protected ReservationException(String message, String errorCode) {
+        super(message);
+        this.errorCode = errorCode;
+    }
+    
+    public String getErrorCode() {
+        return errorCode;
+    }
+}
