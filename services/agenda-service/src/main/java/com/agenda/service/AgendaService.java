@@ -1,6 +1,6 @@
 package com.agenda.service;
 
-import com.agenda.dto.*;
+import com.agenda.dto.generated.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -44,7 +44,7 @@ public class AgendaService {
 
         return buildResponse(city, date, weatherFuture.join(),
             eventsFuture.join(), recommendationsFuture.join(),
-            processingTime, "PARALLEL");
+            processingTime, ModeEnum.PARALLEL);
     }
 
     public AgendaResponse buildAgendaSequential(String city, String date) {
@@ -59,7 +59,7 @@ public class AgendaService {
         log.info("[SEQUENTIAL] Agenda built in {}ms for {}", processingTime, city);
 
         return buildResponse(city, date, weather, events, recommendations,
-            processingTime, "SEQUENTIAL");
+            processingTime, ModeEnum.SEQUENTIAL);
     }
 
     public BenchmarkResult benchmark(String city, String date) {
@@ -72,6 +72,8 @@ public class AgendaService {
         long parTime = System.currentTimeMillis() - parStart;
 
         double speedup = parTime > 0 ? (double) seqTime / parTime : 1.0;
+        log.info("Benchmark - Sequential: {}ms, Parallel: {}ms, Speedup: {}x",
+            seqTime, parTime, String.format("%.2f", speedup));
 
         BenchmarkResult result = new BenchmarkResult();
         result.setSequentialTimeMs(seqTime);
@@ -131,7 +133,7 @@ public class AgendaService {
     private AgendaResponse buildResponse(String city, String date,
             WeatherResponse weather, List<EventResponse> events,
             List<RecommendationResponse> recommendations,
-            long processingTime, String mode) {
+            long processingTime, ModeEnum mode) {
 
         AgendaResponse response = new AgendaResponse();
         response.setCity(city);
@@ -142,10 +144,12 @@ public class AgendaService {
         response.setProcessingTimeMs(processingTime);
         response.setMode(mode);
 
-        AgendaResponse.ApiStatus apiStatus = new AgendaResponse.ApiStatus();
-        apiStatus.setWeatherApiAvailable(weather != null && !Boolean.TRUE.equals(weather.getFallback()));
+        ApiStatus apiStatus = new ApiStatus();
+        apiStatus.setWeatherApiAvailable(
+            weather != null && !Boolean.TRUE.equals(weather.getFallback()));
         apiStatus.setEventsApiAvailable(events != null && !events.isEmpty());
-        apiStatus.setRecommendationsApiAvailable(recommendations != null && !recommendations.isEmpty());
+        apiStatus.setRecommendationsApiAvailable(
+            recommendations != null && !recommendations.isEmpty());
         response.setApiStatus(apiStatus);
 
         return response;
