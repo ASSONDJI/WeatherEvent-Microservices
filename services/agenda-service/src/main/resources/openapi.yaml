@@ -1,0 +1,344 @@
+openapi: 3.0.3
+info:
+  title: Agenda Service API
+  description: |
+    ## Agenda Service
+    
+    Service orchestrateur principal de WeatherEvent Microservices.
+    
+    Combine en appels paralleles :
+    - Meteo (weather-service)
+    - Evenements culturels (event-service)
+    - Recommandations personnalisees (recommendation-service)
+    
+    ### Concepts demontres :
+    - Appels paralleles avec CompletableFuture.allOf()
+    - Mode sequentiel vs parallele
+    - Benchmark et mesure de performance (speedup factor)
+    - Cache Redis
+    - Circuit Breaker Resilience4j
+  version: 1.0.0
+  contact:
+    name: Malaika Assondji
+    email: middleware@univ-cm
+
+servers:
+  - url: http://localhost:8086
+    description: Serveur de developpement
+  - url: http://localhost:8080
+    description: Via API Gateway
+
+tags:
+  - name: Agenda
+    description: Endpoints principaux - Mashup meteo + evenements + recommandations
+  - name: Benchmark
+    description: Comparaison des performances sequentiel vs parallele
+  - name: Health
+    description: Monitoring et sante du service
+
+paths:
+
+  /api/agenda:
+    get:
+      tags:
+        - Agenda
+      summary: Obtenir l'agenda complet en mode parallele
+      description: |
+        Combine en appels paralleles :
+        - Meteo pour la ville
+        - Evenements culturels
+        - Recommandations personnalisees
+        
+        Performance : Temps = max(latences) au lieu de somme
+      operationId: getAgenda
+      parameters:
+        - name: city
+          in: query
+          required: true
+          description: Nom de la ville
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+          example: Paris
+        - name: date
+          in: query
+          required: true
+          description: Date au format YYYY-MM-DD
+          schema:
+            type: string
+            format: date
+          example: "2026-05-20"
+      responses:
+        '200':
+          description: Agenda construit avec succes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgendaResponse'
+        '400':
+          description: Parametres invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Ville non trouvee
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/agenda/sequential:
+    get:
+      tags:
+        - Agenda
+      summary: Obtenir l'agenda en mode sequentiel
+      description: Execute les appels sequentiellement pour comparaison de performance
+      operationId: getAgendaSequential
+      parameters:
+        - name: city
+          in: query
+          required: true
+          schema:
+            type: string
+          example: Paris
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2026-05-20"
+      responses:
+        '200':
+          description: Agenda construit en mode sequentiel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgendaResponse'
+        '400':
+          description: Parametres invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/agenda/benchmark:
+    get:
+      tags:
+        - Benchmark
+      summary: Comparer les performances sequentiel vs parallele
+      description: |
+        Compare le temps d'execution entre :
+        - Mode Sequentiel : somme des latences
+        - Mode Parallele : maximum des latences
+        
+        Gain attendu : 2x a 3x plus rapide
+      operationId: benchmarkAgenda
+      parameters:
+        - name: city
+          in: query
+          required: true
+          schema:
+            type: string
+          example: Paris
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2026-05-20"
+      responses:
+        '200':
+          description: Benchmark complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BenchmarkResult'
+
+  /api/agenda/test:
+    get:
+      tags:
+        - Health
+      summary: Test de sante du service
+      operationId: testAgenda
+      responses:
+        '200':
+          description: Service operationnel
+          content:
+            application/json:
+              schema:
+                type: string
+
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Verification de sante
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service operationnel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  schemas:
+
+    ModeEnum:
+      type: string
+      enum:
+        - PARALLEL
+        - SEQUENTIAL
+      description: Mode d'execution
+
+    WeatherResponse:
+      type: object
+      properties:
+        city:
+          type: string
+        condition:
+          type: string
+        temperature:
+          type: number
+          format: double
+        feelsLike:
+          type: number
+          format: double
+        humidity:
+          type: integer
+        description:
+          type: string
+        fallback:
+          type: boolean
+        windSpeed:
+          type: number
+          format: double
+
+    EventResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        venue:
+          type: string
+        city:
+          type: string
+        category:
+          type: string
+        fallback:
+          type: boolean
+        eventDate:
+          type: string
+        price:
+          type: number
+          format: double
+        source:
+          type: string
+
+    RecommendationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        activity:
+          type: string
+        venue:
+          type: string
+        reason:
+          type: string
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+        indoor:
+          type: boolean
+
+    ApiStatus:
+      type: object
+      properties:
+        weatherApiAvailable:
+          type: boolean
+        eventsApiAvailable:
+          type: boolean
+        recommendationsApiAvailable:
+          type: boolean
+
+    AgendaResponse:
+      type: object
+      properties:
+        city:
+          type: string
+        date:
+          type: string
+        weather:
+          $ref: '#/components/schemas/WeatherResponse'
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventResponse'
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecommendationResponse'
+        processingTimeMs:
+          type: integer
+          format: int64
+        mode:
+          $ref: '#/components/schemas/ModeEnum'
+        apiStatus:
+          $ref: '#/components/schemas/ApiStatus'
+
+    BenchmarkResult:
+      type: object
+      properties:
+        sequentialTimeMs:
+          type: integer
+          format: int64
+        parallelTimeMs:
+          type: integer
+          format: int64
+        speedupFactor:
+          type: number
+          format: double
+        sequentialResponse:
+          $ref: '#/components/schemas/AgendaResponse'
+        parallelResponse:
+          $ref: '#/components/schemas/AgendaResponse'
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, DEGRADED]
+        service:
+          type: string
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        errorCode:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
